@@ -27,7 +27,7 @@ const GameStats = ({ gameState }: GameStatsProps) => {
       <div className="text-sm text-green-700 space-y-1">
         <div>Speed: Lv{gameState.cropTimeUpgrade} (+{gameState.cropTimeUpgrade*5}%)</div>
 <div>
-  Sell: Lv{gameState.sellMultiplierUpgrade} (+{gameState.sellMultiplierUpgrade * 5 + gameState.rebirthSellBonus}%)
+  Sell: Lv{gameState.sellMultiplierUpgrade} (+{gameState.sellMultiplierUpgrade * 10 + gameState.rebirthSellBonus}%)
 </div>
 
       </div>
