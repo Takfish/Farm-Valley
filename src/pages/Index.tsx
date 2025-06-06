@@ -194,7 +194,7 @@ const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
   const harvestCrop = (tileId: string) => {
     const crop = crops[tileId];
     if (crop && crop.isReady) {
-      const upgradeMultiplier = Math.pow(1.05, gameState.sellMultiplierUpgrade);
+      const upgradeMultiplier = Math.pow(1.1, gameState.sellMultiplierUpgrade);
       const rebirthMultiplier = 1 + (gameState.rebirthSellBonus / 100);
       const sellValue = crop.baseValue * upgradeMultiplier * rebirthMultiplier;
       
@@ -252,7 +252,6 @@ const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
       }));
     }
   };
-
   const upgradeExtraTokens = () => {
     const cost = 2 + (gameState.extraTokenUpgrade * 2);
     if (gameState.rebirthTokens >= cost) {
