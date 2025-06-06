@@ -12,7 +12,7 @@ interface RebirthShopProps {
 }
 
 const RebirthShop = ({ gameState, onUpgradeStartingCoins, onUpgradeFarmRows, onUpgradeExtraTokens }: RebirthShopProps) => {
-  const currentStartingCoins = 100 + (gameState.startingCoinsUpgrade * 50);
+  const currentStartingCoins = 25 + (gameState.startingCoinsUpgrade * 50);
   const nextStartingCoins = currentStartingCoins + 50;
   
   const farmRowsCost = 2 + (gameState.farmRowsUpgrade * 2);
