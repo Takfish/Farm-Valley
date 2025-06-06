@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import FarmGrid from '@/components/FarmGrid';
 import Shop from '@/components/Shop';
@@ -46,6 +45,7 @@ const Index = () => {
 
   const [crops, setCrops] = useState<{ [key: string]: Crop }>({});
   const [selectedSeed, setSelectedSeed] = useState<'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango' | 'pineapple' | 'coconut' | 'dragon-fruit' | 'passion-fruit' | 'kiwi'>('carrot');
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const seedTypes = {
     carrot: { name: 'Carrot', growthTime: 30000, baseValue: 10, cost: 5, emoji: '🥕' },
@@ -70,48 +70,79 @@ const Index = () => {
     kiwi: { name: 'Kiwi', growthTime: 540000, baseValue: 17000, cost: 14000, emoji: '🥝' },
   };
 
-  // Cookie utility functions
+  // Improved cookie utility functions
   const setCookie = (name: string, value: string, days: number = 365) => {
-    const expires = new Date();
-    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
-    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+    try {
+      const expires = new Date();
+      expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+      document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+      console.log('Game data saved to cookies');
+    } catch (error) {
+      console.error('Failed to save to cookies:', error);
+    }
   };
 
   const getCookie = (name: string): string | null => {
-    const nameEQ = name + "=";
-    const ca = document.cookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
-      let c = ca[i];
-      while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    try {
+      const nameEQ = name + "=";
+      const ca = document.cookie.split(';');
+      for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) {
+          return decodeURIComponent(c.substring(nameEQ.length, c.length));
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to read from cookies:', error);
+      return null;
     }
-    return null;
   };
-
-  // Save game state to cookies
-  useEffect(() => {
-    const saveData = {
-      gameState,
-      crops,
-      selectedSeed,
-    };
-    setCookie('farmValleySave', JSON.stringify(saveData));
-  }, [gameState, crops, selectedSeed]);
 
   // Load game state from cookies on mount
   useEffect(() => {
     const savedData = getCookie('farmValleySave');
+    console.log('Attempting to load save data:', savedData);
+    
     if (savedData) {
       try {
-        const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = JSON.parse(savedData);
-        setGameState(savedGameState);
-        setCrops(savedCrops || {});
-        setSelectedSeed(savedSelectedSeed || 'carrot');
+        const parsed = JSON.parse(savedData);
+        console.log('Parsed save data:', parsed);
+        
+        if (parsed.gameState) {
+          setGameState(parsed.gameState);
+        }
+        if (parsed.crops) {
+          setCrops(parsed.crops);
+        }
+        if (parsed.selectedSeed) {
+          setSelectedSeed(parsed.selectedSeed);
+        }
+        console.log('Save data loaded successfully');
       } catch (error) {
-        console.log('Failed to load save data from cookies');
+        console.error('Failed to parse save data:', error);
       }
+    } else {
+      console.log('No save data found');
     }
+    setIsLoaded(true);
   }, []);
+
+  // Save game state to cookies whenever it changes
+  useEffect(() => {
+    if (!isLoaded) return; // Don't save on initial load
+    
+    const saveData = {
+      gameState,
+      crops,
+      selectedSeed,
+      lastSaved: Date.now()
+    };
+    
+    console.log('Saving game data:', saveData);
+    setCookie('farmValleySave', JSON.stringify(saveData));
+  }, [gameState, crops, selectedSeed, isLoaded]);
 
   // Update crop readiness every second
   useEffect(() => {
@@ -235,6 +266,15 @@ const Index = () => {
   const getRebirthCost = () => {
     return 2000 * Math.pow(2, gameState.rebirths);
   };
+
+  // Don't render until data is loaded
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-green-100 to-green-200 flex items-center justify-center">
+        <div className="text-2xl font-bold text-green-800">Loading Farm Valley...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-100 to-green-200 p-4">
