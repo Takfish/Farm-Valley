@@ -31,7 +31,7 @@ export interface Crop {
 
 const Index = () => {
   const [gameState, setGameState] = useState<GameState>({
-    coins: 10,
+    coins: 25,
     cropTimeUpgrade: 0,
     sellMultiplierUpgrade: 0,
     rebirths: 0,
@@ -214,7 +214,7 @@ const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
   const performRebirth = () => {
     const rebirthCost = 2000 * Math.pow(2, gameState.rebirths);
     if (gameState.coins >= rebirthCost) {
-      const startingCoins = 100 + (gameState.startingCoinsUpgrade * 50);
+      const startingCoins = 25 + (gameState.startingCoinsUpgrade * 50);
       const extraTokens = 1 + gameState.extraTokenUpgrade;
       
       setGameState(prev => ({
@@ -224,7 +224,7 @@ const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
         sellMultiplierUpgrade: 0,
         rebirths: prev.rebirths + 1,
         rebirthTokens: prev.rebirthTokens + extraTokens,
-        rebirthSpeedBonus: prev.rebirthSpeedBonus + 50,
+        rebirthSpeedBonus: prev.rebirthSpeedBonus + 0,
         rebirthSellBonus: prev.rebirthSellBonus + 50,
       }));
 
