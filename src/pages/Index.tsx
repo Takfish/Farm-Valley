@@ -351,7 +351,7 @@ const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
                   <p>Tokens per Rebirth: {1 + gameState.extraTokenUpgrade}</p>
                 </div>
                 <p className="text-gray-700">
-                  Reset everything and gain permanent +50% speed and sell bonuses
+                  Reset everything and gain permanent +50% sell bonus!
                 </p>
                 <Button
                   onClick={performRebirth}
