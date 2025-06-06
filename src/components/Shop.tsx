@@ -89,7 +89,7 @@ const Shop = ({ gameState, setGameState }: ShopProps) => {
               {upgrades.sellMultiplier.name}
             </CardTitle>
             <CardDescription>{upgrades.sellMultiplier.description}</CardDescription>
-          </CardContent>
+          </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <div className="text-sm text-muted-foreground">
