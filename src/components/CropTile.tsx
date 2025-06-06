@@ -78,8 +78,8 @@ const CropTile = ({ tileId, crop, onPlant, onHarvest, gameState }: CropTileProps
   }
 
   if (crop.isReady) {
-    const upgradeMultiplier = Math.pow(1.5, gameState.sellMultiplierUpgrade);
-    const rebirthMultiplier = 1 + (gameState.rebirthSellBonus / 100);
+          const upgradeMultiplier = Math.pow(1.05, gameState.sellMultiplierUpgrade);
+      const rebirthMultiplier = 1 + (gameState.rebirthSellBonus / 100);
     const sellValue = crop.baseValue * upgradeMultiplier * rebirthMultiplier;
     
     return (
