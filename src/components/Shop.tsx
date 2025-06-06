@@ -20,10 +20,10 @@ const Shop = ({ gameState, setGameState }: ShopProps) => {
     },
     sellMultiplier: {
       name: 'Better Prices',
-      description: 'Increase sell price by 5%',
+      description: 'Increase sell price by 10%',
       icon: TrendingUp,
       baseCost: 75,
-      maxLevel: 100,
+      maxLevel: 50,
     },
   };
 
