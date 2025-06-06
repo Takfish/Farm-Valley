@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { GameState, Crop } from '@/pages/Index';
@@ -39,12 +38,24 @@ const CropTile = ({ tileId, crop, onPlant, onHarvest, gameState }: CropTileProps
   };
 
   const getCropEmoji = (type: string) => {
-    switch (type) {
-      case 'carrot': return '🥕';
-      case 'wheat': return '🌾';
-      case 'corn': return '🌽';
-      default: return '🌱';
-    }
+    const emojiMap: { [key: string]: string } = {
+      carrot: '🥕',
+      wheat: '🌾', 
+      corn: '🌽',
+      potato: '🥔',
+      tomato: '🍅',
+      pepper: '🌶️',
+      eggplant: '🍆',
+      cucumber: '🥒',
+      pumpkin: '🎃',
+      strawberry: '🍓',
+      blueberry: '🫐',
+      grape: '🍇',
+      apple: '🍎',
+      orange: '🍊',
+      mango: '🥭',
+    };
+    return emojiMap[type] || '🌱';
   };
 
   if (!crop) {
@@ -61,7 +72,9 @@ const CropTile = ({ tileId, crop, onPlant, onHarvest, gameState }: CropTileProps
   }
 
   if (crop.isReady) {
-    const sellValue = crop.baseValue * Math.pow(1.5, gameState.sellMultiplierUpgrade);
+    const upgradeMultiplier = Math.pow(1.5, gameState.sellMultiplierUpgrade);
+    const rebirthMultiplier = 1 + (gameState.rebirthSellBonus / 100);
+    const sellValue = crop.baseValue * upgradeMultiplier * rebirthMultiplier;
     
     return (
       <Button
