@@ -48,7 +48,7 @@ const Index = () => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   const seedTypes = {
-    carrot: { name: 'Carrot', growthTime: 30000, baseValue: 10, cost: 5, emoji: '🥕' },
+    carrot: { name: 'Carrot', growthTime: 30000, baseValue: 10, cost: 6, emoji: '🥕' },
     wheat: { name: 'Wheat', growthTime: 45000, baseValue: 15, cost: 8, emoji: '🌾' },
     corn: { name: 'Corn', growthTime: 60000, baseValue: 25, cost: 15, emoji: '🌽' },
     potato: { name: 'Potato', growthTime: 75000, baseValue: 35, cost: 25, emoji: '🥔' },
