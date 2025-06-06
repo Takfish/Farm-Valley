@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import FarmGrid from '@/components/FarmGrid';
 import Shop from '@/components/Shop';
@@ -49,39 +50,57 @@ const Index = () => {
   const seedTypes = {
     carrot: { name: 'Carrot', growthTime: 30000, baseValue: 10, cost: 5, emoji: '🥕' },
     wheat: { name: 'Wheat', growthTime: 45000, baseValue: 15, cost: 8, emoji: '🌾' },
-    corn: { name: 'Corn', growthTime: 60000, baseValue: 25, cost: 12, emoji: '🌽' },
-    potato: { name: 'Potato', growthTime: 75000, baseValue: 35, cost: 18, emoji: '🥔' },
-    tomato: { name: 'Tomato', growthTime: 90000, baseValue: 50, cost: 25, emoji: '🍅' },
-    pepper: { name: 'Pepper', growthTime: 105000, baseValue: 70, cost: 35, emoji: '🌶️' },
-    eggplant: { name: 'Eggplant', growthTime: 120000, baseValue: 95, cost: 50, emoji: '🍆' },
-    cucumber: { name: 'Cucumber', growthTime: 135000, baseValue: 125, cost: 70, emoji: '🥒' },
-    pumpkin: { name: 'Pumpkin', growthTime: 150000, baseValue: 160, cost: 95, emoji: '🎃' },
-    strawberry: { name: 'Strawberry', growthTime: 165000, baseValue: 200, cost: 125, emoji: '🍓' },
-    blueberry: { name: 'Blueberry', growthTime: 180000, baseValue: 245, cost: 160, emoji: '🫐' },
-    grape: { name: 'Grape', growthTime: 195000, baseValue: 295, cost: 200, emoji: '🍇' },
-    apple: { name: 'Apple', growthTime: 210000, baseValue: 350, cost: 245, emoji: '🍎' },
-    orange: { name: 'Orange', growthTime: 225000, baseValue: 410, cost: 295, emoji: '🍊' },
-    mango: { name: 'Mango', growthTime: 240000, baseValue: 475, cost: 350, emoji: '🥭' },
-    pineapple: { name: 'Pineapple', growthTime: 300000, baseValue: 750, cost: 500, emoji: '🍍' },
-    coconut: { name: 'Coconut', growthTime: 360000, baseValue: 1200, cost: 800, emoji: '🥥' },
-    'dragon-fruit': { name: 'Dragon Fruit', growthTime: 420000, baseValue: 1800, cost: 1200, emoji: '🐲' },
-    'passion-fruit': { name: 'Passion Fruit', growthTime: 480000, baseValue: 2700, cost: 1800, emoji: '💜' },
-    kiwi: { name: 'Kiwi', growthTime: 540000, baseValue: 4000, cost: 2700, emoji: '🥝' },
+    corn: { name: 'Corn', growthTime: 60000, baseValue: 25, cost: 15, emoji: '🌽' },
+    potato: { name: 'Potato', growthTime: 75000, baseValue: 35, cost: 25, emoji: '🥔' },
+    tomato: { name: 'Tomato', growthTime: 90000, baseValue: 50, cost: 40, emoji: '🍅' },
+    pepper: { name: 'Pepper', growthTime: 105000, baseValue: 75, cost: 60, emoji: '🌶️' },
+    eggplant: { name: 'Eggplant', growthTime: 120000, baseValue: 110, cost: 90, emoji: '🍆' },
+    cucumber: { name: 'Cucumber', growthTime: 135000, baseValue: 160, cost: 130, emoji: '🥒' },
+    pumpkin: { name: 'Pumpkin', growthTime: 150000, baseValue: 230, cost: 190, emoji: '🎃' },
+    strawberry: { name: 'Strawberry', growthTime: 165000, baseValue: 340, cost: 280, emoji: '🍓' },
+    blueberry: { name: 'Blueberry', growthTime: 180000, baseValue: 500, cost: 410, emoji: '🫐' },
+    grape: { name: 'Grape', growthTime: 195000, baseValue: 740, cost: 610, emoji: '🍇' },
+    apple: { name: 'Apple', growthTime: 210000, baseValue: 1100, cost: 900, emoji: '🍎' },
+    orange: { name: 'Orange', growthTime: 225000, baseValue: 1600, cost: 1320, emoji: '🍊' },
+    mango: { name: 'Mango', growthTime: 240000, baseValue: 2400, cost: 1950, emoji: '🥭' },
+    pineapple: { name: 'Pineapple', growthTime: 300000, baseValue: 3500, cost: 2900, emoji: '🍍' },
+    coconut: { name: 'Coconut', growthTime: 360000, baseValue: 5200, cost: 4300, emoji: '🥥' },
+    'dragon-fruit': { name: 'Dragon Fruit', growthTime: 420000, baseValue: 7800, cost: 6400, emoji: '🐲' },
+    'passion-fruit': { name: 'Passion Fruit', growthTime: 480000, baseValue: 11500, cost: 9500, emoji: '💜' },
+    kiwi: { name: 'Kiwi', growthTime: 540000, baseValue: 17000, cost: 14000, emoji: '🥝' },
   };
 
-  // Save game state to localStorage
+  // Cookie utility functions
+  const setCookie = (name: string, value: string, days: number = 365) => {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+  };
+
+  const getCookie = (name: string): string | null => {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+  };
+
+  // Save game state to cookies
   useEffect(() => {
     const saveData = {
       gameState,
       crops,
       selectedSeed,
     };
-    localStorage.setItem('farmValleySave', JSON.stringify(saveData));
+    setCookie('farmValleySave', JSON.stringify(saveData));
   }, [gameState, crops, selectedSeed]);
 
-  // Load game state from localStorage on mount
+  // Load game state from cookies on mount
   useEffect(() => {
-    const savedData = localStorage.getItem('farmValleySave');
+    const savedData = getCookie('farmValleySave');
     if (savedData) {
       try {
         const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = JSON.parse(savedData);
@@ -89,7 +108,7 @@ const Index = () => {
         setCrops(savedCrops || {});
         setSelectedSeed(savedSelectedSeed || 'carrot');
       } catch (error) {
-        console.log('Failed to load save data');
+        console.log('Failed to load save data from cookies');
       }
     }
   }, []);
