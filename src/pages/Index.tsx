@@ -168,7 +168,8 @@ const Index = () => {
   const plantCrop = (tileId: string) => {
     const seedType = seedTypes[selectedSeed];
     if (gameState.coins >= seedType.cost && !crops[tileId]) {
-      const speedMultiplier = Math.pow(0.8, gameState.cropTimeUpgrade) * (1 - (gameState.rebirthSpeedBonus / 100));
+const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
+
       const adjustedGrowthTime = seedType.growthTime * speedMultiplier;
       
       setCrops(prev => ({
@@ -193,7 +194,7 @@ const Index = () => {
   const harvestCrop = (tileId: string) => {
     const crop = crops[tileId];
     if (crop && crop.isReady) {
-      const upgradeMultiplier = Math.pow(1.5, gameState.sellMultiplierUpgrade);
+      const upgradeMultiplier = Math.pow(1.05, gameState.sellMultiplierUpgrade);
       const rebirthMultiplier = 1 + (gameState.rebirthSellBonus / 100);
       const sellValue = crop.baseValue * upgradeMultiplier * rebirthMultiplier;
       
