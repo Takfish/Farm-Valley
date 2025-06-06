@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { GameState, Crop } from '@/pages/Index';
@@ -54,6 +55,11 @@ const CropTile = ({ tileId, crop, onPlant, onHarvest, gameState }: CropTileProps
       apple: '🍎',
       orange: '🍊',
       mango: '🥭',
+      pineapple: '🍍',
+      coconut: '🥥',
+      'dragon-fruit': '🐲',
+      'passion-fruit': '💜',
+      kiwi: '🥝',
     };
     return emojiMap[type] || '🌱';
   };

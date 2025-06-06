@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import FarmGrid from '@/components/FarmGrid';
 import Shop from '@/components/Shop';
@@ -17,11 +16,13 @@ export interface GameState {
   startingCoinsUpgrade: number;
   rebirthSpeedBonus: number;
   rebirthSellBonus: number;
+  farmRowsUpgrade: number;
+  extraTokenUpgrade: number;
 }
 
 export interface Crop {
   id: string;
-  type: 'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango';
+  type: 'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango' | 'pineapple' | 'coconut' | 'dragon-fruit' | 'passion-fruit' | 'kiwi';
   plantedAt: number;
   growthTime: number;
   isReady: boolean;
@@ -38,10 +39,12 @@ const Index = () => {
     startingCoinsUpgrade: 0,
     rebirthSpeedBonus: 0,
     rebirthSellBonus: 0,
+    farmRowsUpgrade: 0,
+    extraTokenUpgrade: 0,
   });
 
   const [crops, setCrops] = useState<{ [key: string]: Crop }>({});
-  const [selectedSeed, setSelectedSeed] = useState<'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango'>('carrot');
+  const [selectedSeed, setSelectedSeed] = useState<'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango' | 'pineapple' | 'coconut' | 'dragon-fruit' | 'passion-fruit' | 'kiwi'>('carrot');
 
   const seedTypes = {
     carrot: { name: 'Carrot', growthTime: 30000, baseValue: 10, cost: 5, emoji: '🥕' },
@@ -59,7 +62,37 @@ const Index = () => {
     apple: { name: 'Apple', growthTime: 210000, baseValue: 350, cost: 245, emoji: '🍎' },
     orange: { name: 'Orange', growthTime: 225000, baseValue: 410, cost: 295, emoji: '🍊' },
     mango: { name: 'Mango', growthTime: 240000, baseValue: 475, cost: 350, emoji: '🥭' },
+    pineapple: { name: 'Pineapple', growthTime: 300000, baseValue: 750, cost: 500, emoji: '🍍' },
+    coconut: { name: 'Coconut', growthTime: 360000, baseValue: 1200, cost: 800, emoji: '🥥' },
+    'dragon-fruit': { name: 'Dragon Fruit', growthTime: 420000, baseValue: 1800, cost: 1200, emoji: '🐲' },
+    'passion-fruit': { name: 'Passion Fruit', growthTime: 480000, baseValue: 2700, cost: 1800, emoji: '💜' },
+    kiwi: { name: 'Kiwi', growthTime: 540000, baseValue: 4000, cost: 2700, emoji: '🥝' },
   };
+
+  // Save game state to localStorage
+  useEffect(() => {
+    const saveData = {
+      gameState,
+      crops,
+      selectedSeed,
+    };
+    localStorage.setItem('farmValleySave', JSON.stringify(saveData));
+  }, [gameState, crops, selectedSeed]);
+
+  // Load game state from localStorage on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('farmValleySave');
+    if (savedData) {
+      try {
+        const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = JSON.parse(savedData);
+        setGameState(savedGameState);
+        setCrops(savedCrops || {});
+        setSelectedSeed(savedSelectedSeed || 'carrot');
+      } catch (error) {
+        console.log('Failed to load save data');
+      }
+    }
+  }, []);
 
   // Update crop readiness every second
   useEffect(() => {
@@ -131,6 +164,7 @@ const Index = () => {
     const rebirthCost = 2000 * Math.pow(2, gameState.rebirths);
     if (gameState.coins >= rebirthCost) {
       const startingCoins = 100 + (gameState.startingCoinsUpgrade * 50);
+      const extraTokens = 1 + gameState.extraTokenUpgrade;
       
       setGameState(prev => ({
         ...prev,
@@ -138,7 +172,7 @@ const Index = () => {
         cropTimeUpgrade: 0,
         sellMultiplierUpgrade: 0,
         rebirths: prev.rebirths + 1,
-        rebirthTokens: prev.rebirthTokens + 1,
+        rebirthTokens: prev.rebirthTokens + extraTokens,
         rebirthSpeedBonus: prev.rebirthSpeedBonus + 50,
         rebirthSellBonus: prev.rebirthSellBonus + 50,
       }));
@@ -153,6 +187,28 @@ const Index = () => {
         ...prev,
         rebirthTokens: prev.rebirthTokens - 1,
         startingCoinsUpgrade: prev.startingCoinsUpgrade + 1,
+      }));
+    }
+  };
+
+  const upgradeFarmRows = () => {
+    const cost = 2 + (gameState.farmRowsUpgrade * 2);
+    if (gameState.rebirthTokens >= cost) {
+      setGameState(prev => ({
+        ...prev,
+        rebirthTokens: prev.rebirthTokens - cost,
+        farmRowsUpgrade: prev.farmRowsUpgrade + 1,
+      }));
+    }
+  };
+
+  const upgradeExtraTokens = () => {
+    const cost = 2 + (gameState.extraTokenUpgrade * 2);
+    if (gameState.rebirthTokens >= cost) {
+      setGameState(prev => ({
+        ...prev,
+        rebirthTokens: prev.rebirthTokens - cost,
+        extraTokenUpgrade: prev.extraTokenUpgrade + 1,
       }));
     }
   };
@@ -232,6 +288,7 @@ const Index = () => {
                   <p>Rebirths: {gameState.rebirths}</p>
                   <p>Speed Bonus: +{gameState.rebirthSpeedBonus}%</p>
                   <p>Sell Bonus: +{gameState.rebirthSellBonus}%</p>
+                  <p>Tokens per Rebirth: {1 + gameState.extraTokenUpgrade}</p>
                 </div>
                 <p className="text-gray-700">
                   Reset everything and gain permanent +50% speed and sell bonuses
@@ -252,6 +309,8 @@ const Index = () => {
             <RebirthShop 
               gameState={gameState} 
               onUpgradeStartingCoins={upgradeStartingCoins}
+              onUpgradeFarmRows={upgradeFarmRows}
+              onUpgradeExtraTokens={upgradeExtraTokens}
             />
           </TabsContent>
         </Tabs>
