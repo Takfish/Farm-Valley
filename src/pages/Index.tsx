@@ -152,13 +152,11 @@ const { error } = await supabase
   }, [user, authLoading]);
 
   // Save game data when it changes (only for logged in users)
-useEffect(() => {
-  if (!isLoaded || !user || hasSavedData) return;
-
-  // ✅ Only save once if no save existed
-  saveGameData();
-  setHasSavedData(true); // Now mark that it's saved
-}, [gameState, crops, selectedSeed, isLoaded, user]);
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    
+    saveGameData();
+  }, [gameState, crops, selectedSeed, isLoaded, user]);
 
 
   // Update crop readiness every second
