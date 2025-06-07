@@ -113,91 +113,32 @@ const Index = () => {
   };
 
   // Load game data from database
-  const loadGameData = async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase
-        .from('game_saves')
-        .select('game_data')
-        .eq('user_id', user.id)
-        .single();
+ const loadGameData = async () => {
+  if (!user) return;
+  try {
+    const { data, error } = await supabase
+      .from('game_saves')
+      .select('game_data')
+      .eq('user_id', user.id)
+      .single();
 
-      if (error) {
-        console.log('No saved game data found');
-        return;
-      }
-
-      if (data?.game_data) {
-        const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = data.game_data;
-        if (savedGameState) setGameState(savedGameState);
-        if (savedCrops) setCrops(savedCrops);
-        if (savedSelectedSeed) setSelectedSeed(savedSelectedSeed);
-        console.log('Game data loaded from database');
-      }
-    } catch (error) {
-      console.error('Failed to load game data:', error);
+    if (error) {
+      console.log('No saved game data found or error:', error);
+      return;
     }
-  };
 
-  // Load saved game when user logs in
-  useEffect(() => {
-    if (user) {
-      loadGameData().then(() => setIsLoaded(true));
-    } else {
-      // Reset state when no user
-      setGameState({
-        coins: 25,
-        cropTimeUpgrade: 0,
-        sellMultiplierUpgrade: 0,
-        rebirths: 0,
-        rebirthTokens: 0,
-        startingCoinsUpgrade: 0,
-        rebirthSpeedBonus: 0,
-        rebirthSellBonus: 0,
-        farmRowsUpgrade: 0,
-        extraTokenUpgrade: 0,
-      });
-      setCrops({});
-      setSelectedSeed('carrot');
-      setIsLoaded(false);
+    if (data?.game_data) {
+      console.log('Loaded saved game data:', data.game_data);
+      const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = data.game_data;
+      if (savedGameState) setGameState(savedGameState);
+      if (savedCrops) setCrops(savedCrops);
+      if (savedSelectedSeed) setSelectedSeed(savedSelectedSeed);
     }
-  }, [user]);
+  } catch (error) {
+    console.error('Failed to load game data:', error);
+  }
+};
 
-  // Save game data whenever it changes (debounced to avoid excessive writes)
-  useEffect(() => {
-    if (!isLoaded || !user) return;
-    // Debounce save by 1.5 seconds
-    const timeout = setTimeout(() => {
-      saveGameData();
-    }, 1500);
-
-    return () => clearTimeout(timeout);
-  }, [gameState, crops, selectedSeed, user, isLoaded]);
-  const plantCrop = (tileId: string) => {
-    const seedType = seedTypes[selectedSeed];
-    if (gameState.coins >= seedType.cost && !crops[tileId]) {
-const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
-
-      const adjustedGrowthTime = seedType.growthTime * speedMultiplier;
-      
-      setCrops(prev => ({
-        ...prev,
-        [tileId]: {
-          id: tileId,
-          type: selectedSeed,
-          plantedAt: Date.now(),
-          growthTime: adjustedGrowthTime,
-          isReady: false,
-          baseValue: seedType.baseValue,
-        }
-      }));
-
-      setGameState(prev => ({
-        ...prev,
-        coins: prev.coins - seedType.cost
-      }));
-    }
-  };
 
   const harvestCrop = (tileId: string) => {
     const crop = crops[tileId];
