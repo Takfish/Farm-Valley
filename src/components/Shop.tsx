@@ -15,7 +15,7 @@ const Shop = ({ gameState, setGameState }: ShopProps) => {
       name: 'Faster Growth',
       description: 'Reduce crop growth time by 5%',
       icon: Clock,
-      baseCost: 150,
+      baseCost: 50,
       maxLevel: 10,
     },
     sellMultiplier: {
