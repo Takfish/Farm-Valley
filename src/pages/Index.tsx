@@ -302,7 +302,7 @@ const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
     );
   }
 
-  return (More actions
+  return (
     <div className="min-h-screen bg-gradient-to-b from-green-100 to-green-200 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-6">
