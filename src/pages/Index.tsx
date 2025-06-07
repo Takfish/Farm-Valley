@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';More actions
+import { useState, useEffect } from 'react';
 import FarmGrid from '@/components/FarmGrid';
 import Shop from '@/components/Shop';
 import GameStats from '@/components/GameStats';
