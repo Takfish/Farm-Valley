@@ -90,12 +90,13 @@ const Index = () => {
         lastSaved: Date.now()
       };
 
-      const { error } = await supabase
-        .from('game_saves')
-        .upsert({
-          user_id: user.id,
-          game_data: gameData as any
-        });
+const { error } = await supabase
+  .from('game_saves')
+  .upsert({
+    user_id: user.id,
+    game_data: gameData as any
+  }, { onConflict: 'user_id' });
+
 
       if (error) {
         console.error('Failed to save game data:', error);
