@@ -54,6 +54,7 @@ const Index = () => {
   const [crops, setCrops] = useState<{ [key: string]: Crop }>({});
   const [selectedSeed, setSelectedSeed] = useState<'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango' | 'pineapple' | 'coconut' | 'dragon-fruit' | 'passion-fruit' | 'kiwi'>('carrot');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasSavedData, setHasSavedData] = useState(false);
 
   const seedTypes = {
     carrot: { name: 'Carrot', growthTime: 30000, baseValue: 10, cost: 5, emoji: '🥕' },
@@ -124,16 +125,18 @@ const { error } = await supabase
         return;
       }
 
-      if (data?.game_data) {
-        const gameData = data.game_data as any;
-        const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = gameData;
-        
-        if (savedGameState) setGameState(savedGameState);
-        if (savedCrops) setCrops(savedCrops);
-        if (savedSelectedSeed) setSelectedSeed(savedSelectedSeed);
-        
-        console.log('Game data loaded from database');
-      }
+    if (data?.game_data) {
+      const gameData = data.game_data as any;
+      const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = gameData;
+    
+      if (savedGameState) setGameState(savedGameState);
+      if (savedCrops) setCrops(savedCrops);
+      if (savedSelectedSeed) setSelectedSeed(savedSelectedSeed);
+    
+      setHasSavedData(true); // ✅ mark that save exists
+    
+      console.log('Game data loaded from database');
+    }
     } catch (error) {
       console.error('Failed to load game data:', error);
     }
@@ -149,11 +152,14 @@ const { error } = await supabase
   }, [user, authLoading]);
 
   // Save game data when it changes (only for logged in users)
-  useEffect(() => {
-    if (!isLoaded || !user) return;
-    
-    saveGameData();
-  }, [gameState, crops, selectedSeed, isLoaded, user]);
+useEffect(() => {
+  if (!isLoaded || !user || hasSavedData) return;
+
+  // ✅ Only save once if no save existed
+  saveGameData();
+  setHasSavedData(true); // Now mark that it's saved
+}, [gameState, crops, selectedSeed, isLoaded, user]);
+
 
   // Update crop readiness every second
   useEffect(() => {
