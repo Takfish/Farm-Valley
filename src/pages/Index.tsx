@@ -1,15 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';More actions
 import FarmGrid from '@/components/FarmGrid';
 import Shop from '@/components/Shop';
 import GameStats from '@/components/GameStats';
 import RebirthShop from '@/components/RebirthShop';
-import { AuthModal } from '@/components/AuthModal';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Coins, ShoppingCart, Sprout, RotateCcw, Trophy, LogIn, LogOut } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { Coins, ShoppingCart, Sprout, RotateCcw, Trophy } from 'lucide-react';
 
 export interface GameState {
   coins: number;
@@ -34,10 +30,6 @@ export interface Crop {
 }
 
 const Index = () => {
-  const { user, loading: authLoading, signOut } = useAuth();
-  const { toast } = useToast();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  
   const [gameState, setGameState] = useState<GameState>({
     coins: 25,
     cropTimeUpgrade: 0,
@@ -78,75 +70,135 @@ const Index = () => {
     kiwi: { name: 'Kiwi', growthTime: 540000, baseValue: 17000, cost: 14000, emoji: '🥝' },
   };
 
-  // Save game data to database
-  const saveGameData = async () => {
-    if (!user) return;
+  // Improved cookie utility functions
+  const setCookie = (name: string, value: string, days: number = 365) => {
     try {
-      const { error } = await supabase
-        .from('game_saves')
-        .upsert(
-          {
-            user_id: user.id,
-            game_data: { gameState, crops, selectedSeed },
-          },
-          { onConflict: 'user_id' }
-        );
-
-      if (error) {
-        console.error('Failed to save game data:', error);
-        toast({
-          title: 'Save failed',
-          description: 'We couldn’t save your game. Please try again.',
-          variant: 'destructive',
-        });
-      } else {
-        console.log('Game data saved successfully!');
-      }
-    } catch (err) {
-      console.error('Unexpected error saving game data:', err);
-      toast({
-        title: 'Unexpected error',
-        description: 'Something went wrong while saving.',
-        variant: 'destructive',
-      });
+      const expires = new Date();
+      expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+      document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+      console.log('Game data saved to cookies');
+    } catch (error) {
+      console.error('Failed to save to cookies:', error);
     }
   };
 
-  // Load game data from database
- const loadGameData = async () => {
-  if (!user) return;
-  try {
-    const { data, error } = await supabase
-      .from('game_saves')
-      .select('game_data')
-      .eq('user_id', user.id)
-      .single();
-
-    if (error) {
-      console.log('No saved game data found or error:', error);
-      return;
+  const getCookie = (name: string): string | null => {
+    try {
+      const nameEQ = name + "=";
+      const ca = document.cookie.split(';');
+      for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) {
+          return decodeURIComponent(c.substring(nameEQ.length, c.length));
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to read from cookies:', error);
+      return null;
     }
+  };
 
-    if (data?.game_data) {
-      console.log('Loaded saved game data:', data.game_data);
-      const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = data.game_data;
-      if (savedGameState) setGameState(savedGameState);
-      if (savedCrops) setCrops(savedCrops);
-      if (savedSelectedSeed) setSelectedSeed(savedSelectedSeed);
+  // Load game state from cookies on mount
+  useEffect(() => {
+    const savedData = getCookie('farmValleySave');
+    console.log('Attempting to load save data:', savedData);
+
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        console.log('Parsed save data:', parsed);
+
+        if (parsed.gameState) {
+          setGameState(parsed.gameState);
+        }
+        if (parsed.crops) {
+          setCrops(parsed.crops);
+        }
+        if (parsed.selectedSeed) {
+          setSelectedSeed(parsed.selectedSeed);
+        }
+        console.log('Save data loaded successfully');
+      } catch (error) {
+        console.error('Failed to parse save data:', error);
+      }
+    } else {
+      console.log('No save data found');
     }
-  } catch (error) {
-    console.error('Failed to load game data:', error);
-  }
-};
+    setIsLoaded(true);
+  }, []);
 
+  // Save game state to cookies whenever it changes
+  useEffect(() => {
+    if (!isLoaded) return; // Don't save on initial load
+
+    const saveData = {
+      gameState,
+      crops,
+      selectedSeed,
+      lastSaved: Date.now()
+    };
+
+    console.log('Saving game data:', saveData);
+    setCookie('farmValleySave', JSON.stringify(saveData));
+  }, [gameState, crops, selectedSeed, isLoaded]);
+
+  // Update crop readiness every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCrops(prevCrops => {
+        const updatedCrops = { ...prevCrops };
+        Object.keys(updatedCrops).forEach(key => {
+          const crop = updatedCrops[key];
+          if (!crop.isReady) {
+            const timeElapsed = Date.now() - crop.plantedAt;
+            if (timeElapsed >= crop.growthTime) {
+              updatedCrops[key] = { ...crop, isReady: true };
+            }
+          }
+        });
+        return updatedCrops;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const plantCrop = (tileId: string) => {
+    const seedType = seedTypes[selectedSeed];
+    if (gameState.coins >= seedType.cost && !crops[tileId]) {
+const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
+
+      const adjustedGrowthTime = seedType.growthTime * speedMultiplier;
+
+      setCrops(prev => ({
+        ...prev,
+        [tileId]: {
+          id: tileId,
+          type: selectedSeed,
+          plantedAt: Date.now(),
+          growthTime: adjustedGrowthTime,
+          isReady: false,
+          baseValue: seedType.baseValue,
+        }
+      }));
+
+      setGameState(prev => ({
+        ...prev,
+        coins: prev.coins - seedType.cost
+      }));
+    }
+  };
 
   const harvestCrop = (tileId: string) => {
     const crop = crops[tileId];
     if (crop && crop.isReady) {
+      const upgradeMultiplier = Math.pow(1.05, gameState.sellMultiplierUpgrade);
       const upgradeMultiplier = Math.pow(1.1, gameState.sellMultiplierUpgrade);
       const rebirthMultiplier = 1 + (gameState.rebirthSellBonus / 100);
       const sellValue = crop.baseValue * upgradeMultiplier * rebirthMultiplier;
-      
+
       setGameState(prev => ({
         ...prev,
         coins: prev.coins + Math.floor(sellValue)
@@ -165,7 +217,7 @@ const Index = () => {
     if (gameState.coins >= rebirthCost) {
       const startingCoins = 25 + (gameState.startingCoinsUpgrade * 50);
       const extraTokens = 1 + gameState.extraTokenUpgrade;
-      
+
       setGameState(prev => ({
         ...prev,
         coins: startingCoins,
@@ -201,6 +253,7 @@ const Index = () => {
       }));
     }
   };
+
   const upgradeExtraTokens = () => {
     const cost = 2 + (gameState.extraTokenUpgrade * 2);
     if (gameState.rebirthTokens >= cost) {
@@ -217,7 +270,7 @@ const Index = () => {
   };
 
   // Don't render until data is loaded
-  if (!isLoaded || authLoading) {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-100 to-green-200 flex items-center justify-center">
         <div className="text-2xl font-bold text-green-800">Loading Farm Valley...</div>
@@ -229,22 +282,7 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-b from-green-100 to-green-200 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-4xl font-bold text-green-800">Farm Valley</h1>
-            <div className="flex gap-2">
-              {user ? (
-                <Button onClick={signOut} variant="outline">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </Button>
-              ) : (
-                <Button onClick={() => setShowAuthModal(true)}>
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Login / Sign Up
-                </Button>
-              )}
-            </div>
-          </div>
+          <h1 className="text-4xl font-bold text-green-800 mb-2">Farm Valley</h1>
           <GameStats gameState={gameState} />
         </div>
 
@@ -338,11 +376,6 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
-      
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-      />
     </div>
   );
 };
