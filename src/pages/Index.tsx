@@ -53,11 +53,8 @@ const Index = () => {
 
   const [crops, setCrops] = useState<{ [key: string]: Crop }>({});
   const [selectedSeed, setSelectedSeed] = useState<'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango' | 'pineapple' | 'coconut' | 'dragon-fruit' | 'passion-fruit' | 'kiwi'>('carrot');
-  
-  // ✅ NEW STATE: This tracks whether the initial data load for the *current user session* has completed.
-  const [initialDataLoadedForUser, setInitialDataLoadedForUser] = useState(false);
-  // Renamed from isLoaded to be more specific.
-  const [isGameReady, setIsGameReady] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasSavedData, setHasSavedData] = useState(false);
 
   const seedTypes = {
     carrot: { name: 'Carrot', growthTime: 30000, baseValue: 10, cost: 5, emoji: '🥕' },
@@ -84,18 +81,8 @@ const Index = () => {
 
   // Save game data to database
   const saveGameData = async () => {
-    if (!user) {
-      console.log('Not logged in, skipping save.');
-      return;
-    }
+    if (!user) return;
     
-    // ✅ Ensure initial data load is complete before saving.
-    // This prevents default state from overwriting real data on login.
-    if (!initialDataLoadedForUser) {
-      console.log('Initial data not yet loaded for user, skipping save.');
-      return;
-    }
-
     try {
       const gameData = {
         gameState,
@@ -104,22 +91,18 @@ const Index = () => {
         lastSaved: Date.now()
       };
 
-      const { error } = await supabase
-        .from('game_saves')
-        .upsert({
-          user_id: user.id,
-          game_data: gameData as any
-        }, { onConflict: 'user_id' });
+const { error } = await supabase
+  .from('game_saves')
+  .upsert({
+    user_id: user.id,
+    game_data: gameData as any
+  }, { onConflict: 'user_id' });
+
 
       if (error) {
         console.error('Failed to save game data:', error);
       } else {
         console.log('Game data saved to database');
-        toast({
-          title: "Game Saved!",
-          description: "Your progress has been saved.",
-          duration: 1500,
-        });
       }
     } catch (error) {
       console.error('Failed to save game data:', error);
@@ -137,85 +120,43 @@ const Index = () => {
         .eq('user_id', user.id)
         .single();
 
-      if (error && error.code === 'PGRST116') { // No rows found error code
-        console.log('No saved game data found for user. Initializing with default state.');
-        // If no data, keep the current default state, but mark as loaded
-        setInitialDataLoadedForUser(true); // ✅ Mark as loaded even if no data
-        return;
-      } else if (error) {
-        console.error('Failed to load game data:', error);
-        setInitialDataLoadedForUser(true); // ✅ Mark as loaded even on error to unblock UI
+      if (error) {
+        console.log('No saved game data found');
         return;
       }
 
-      if (data?.game_data) {
-        const gameData = data.game_data as any;
-        const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = gameData;
-        
-        // Only apply if the data exists, otherwise keep defaults
-        if (savedGameState) setGameState(savedGameState);
-        if (savedCrops) setCrops(savedCrops);
-        if (savedSelectedSeed) setSelectedSeed(savedSelectedSeed);
-        
-        console.log('Game data loaded from database');
-      }
-      setInitialDataLoadedForUser(true); // ✅ Crucial: Mark as loaded AFTER data is applied
+    if (data?.game_data) {
+      const gameData = data.game_data as any;
+      const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = gameData;
+    
+      if (savedGameState) setGameState(savedGameState);
+      if (savedCrops) setCrops(savedCrops);
+      if (savedSelectedSeed) setSelectedSeed(savedSelectedSeed);
+    
+      setHasSavedData(true); // ✅ mark that save exists
+    
+      console.log('Game data loaded from database');
+    }
     } catch (error) {
       console.error('Failed to load game data:', error);
-      setInitialDataLoadedForUser(true); // ✅ Mark as loaded on error
     }
   };
 
-  // Effect to handle initial data load when user or auth status changes
+  // Load game data when user logs in
   useEffect(() => {
-    // If auth is loading, we wait.
-    if (authLoading) {
-      setIsGameReady(false); // Game is not ready while auth is loading
-      return;
+    if (user && !authLoading) {
+      loadGameData().then(() => setIsLoaded(true));
+    } else if (!user && !authLoading) {
+      setIsLoaded(true);
     }
+  }, [user, authLoading]);
 
-    if (user) {
-      // User is logged in, attempt to load their data
-      loadGameData().then(() => {
-        setIsGameReady(true); // Once loadGameData completes (success or no data), game is ready
-      });
-    } else {
-      // No user, play with default state
-      setGameState({
-        coins: 25,
-        cropTimeUpgrade: 0,
-        sellMultiplierUpgrade: 0,
-        rebirths: 0,
-        rebirthTokens: 0,
-        startingCoinsUpgrade: 0,
-        rebirthSpeedBonus: 0,
-        rebirthSellBonus: 0,
-        farmRowsUpgrade: 0,
-        extraTokenUpgrade: 0,
-      });
-      setCrops({});
-      setSelectedSeed('carrot');
-      setInitialDataLoadedForUser(true); // Important: Mark as loaded for guest too, so auto-save won't trigger later for guests
-      setIsGameReady(true); // Game is ready with default state
-    }
-  }, [user, authLoading]); // Depend on user and authLoading
-
-  // Save game data when it changes (only for logged in users, AND after initial data load)
+  // Save game data when it changes (only for logged in users)
   useEffect(() => {
-    // Only save if the game is ready and the initial data for the user has been processed (loaded or confirmed new)
-    // and there's a user logged in.
-    if (!isGameReady || !initialDataLoadedForUser || !user) {
-      console.log('Skipping auto-save: Game not ready, initial data not loaded, or no user.');
-      return;
-    }
+    if (!isLoaded || !user) return;
     
-    // Adding a debounce to saveGameData is a good practice to prevent excessive writes
-    const saveTimer = setTimeout(() => {
-      saveGameData();
-    }, 1000); // Save 1 second after state settles
-
-    return () => clearTimeout(saveTimer); // Clear timeout if state changes again before save
-  }, [gameState, crops, selectedSeed, isGameReady, initialDataLoadedForUser, user]);
+    saveGameData();
+  }, [gameState, crops, selectedSeed, isLoaded, user]);
 
 
   // Update crop readiness every second
@@ -242,7 +183,8 @@ const Index = () => {
   const plantCrop = (tileId: string) => {
     const seedType = seedTypes[selectedSeed];
     if (gameState.coins >= seedType.cost && !crops[tileId]) {
-      const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
+const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
+
       const adjustedGrowthTime = seedType.growthTime * speedMultiplier;
       
       setCrops(prev => ({
@@ -297,7 +239,7 @@ const Index = () => {
         sellMultiplierUpgrade: 0,
         rebirths: prev.rebirths + 1,
         rebirthTokens: prev.rebirthTokens + extraTokens,
-        rebirthSpeedBonus: prev.rebirthSpeedBonus + 0, // This seems like it should increase?
+        rebirthSpeedBonus: prev.rebirthSpeedBonus + 0,
         rebirthSellBonus: prev.rebirthSellBonus + 50,
       }));
 
@@ -341,7 +283,7 @@ const Index = () => {
   };
 
   // Don't render until data is loaded
-  if (!isGameReady || authLoading) { // Changed from isLoaded to isGameReady
+  if (!isLoaded || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-100 to-green-200 flex items-center justify-center">
         <div className="text-2xl font-bold text-green-800">Loading Farm Valley...</div>
