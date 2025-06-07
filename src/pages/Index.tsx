@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient'; // Import Supabase client
 import FarmGrid from '@/components/FarmGrid';
 import Shop from '@/components/Shop';
 import GameStats from '@/components/GameStats';
@@ -6,28 +7,6 @@ import RebirthShop from '@/components/RebirthShop';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Coins, ShoppingCart, Sprout, RotateCcw, Trophy } from 'lucide-react';
-
-export interface GameState {
-  coins: number;
-  cropTimeUpgrade: number;
-  sellMultiplierUpgrade: number;
-  rebirths: number;
-  rebirthTokens: number;
-  startingCoinsUpgrade: number;
-  rebirthSpeedBonus: number;
-  rebirthSellBonus: number;
-  farmRowsUpgrade: number;
-  extraTokenUpgrade: number;
-}
-
-export interface Crop {
-  id: string;
-  type: 'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango' | 'pineapple' | 'coconut' | 'dragon-fruit' | 'passion-fruit' | 'kiwi';
-  plantedAt: number;
-  growthTime: number;
-  isReady: boolean;
-  baseValue: number;
-}
 
 const Index = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -42,155 +21,114 @@ const Index = () => {
     farmRowsUpgrade: 0,
     extraTokenUpgrade: 0,
   });
-
   const [crops, setCrops] = useState<{ [key: string]: Crop }>({});
   const [selectedSeed, setSelectedSeed] = useState<'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango' | 'pineapple' | 'coconut' | 'dragon-fruit' | 'passion-fruit' | 'kiwi'>('carrot');
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const seedTypes = {
-    carrot: { name: 'Carrot', growthTime: 30000, baseValue: 10, cost: 5, emoji: '🥕' },
-    wheat: { name: 'Wheat', growthTime: 45000, baseValue: 15, cost: 8, emoji: '🌾' },
-    corn: { name: 'Corn', growthTime: 60000, baseValue: 25, cost: 15, emoji: '🌽' },
-    potato: { name: 'Potato', growthTime: 75000, baseValue: 35, cost: 25, emoji: '🥔' },
-    tomato: { name: 'Tomato', growthTime: 90000, baseValue: 50, cost: 40, emoji: '🍅' },
-    pepper: { name: 'Pepper', growthTime: 105000, baseValue: 75, cost: 60, emoji: '🌶️' },
-    eggplant: { name: 'Eggplant', growthTime: 120000, baseValue: 110, cost: 90, emoji: '🍆' },
-    cucumber: { name: 'Cucumber', growthTime: 135000, baseValue: 160, cost: 130, emoji: '🥒' },
-    pumpkin: { name: 'Pumpkin', growthTime: 150000, baseValue: 230, cost: 190, emoji: '🎃' },
-    strawberry: { name: 'Strawberry', growthTime: 165000, baseValue: 340, cost: 280, emoji: '🍓' },
-    blueberry: { name: 'Blueberry', growthTime: 180000, baseValue: 500, cost: 410, emoji: '🫐' },
-    grape: { name: 'Grape', growthTime: 195000, baseValue: 740, cost: 610, emoji: '🍇' },
-    apple: { name: 'Apple', growthTime: 210000, baseValue: 1100, cost: 900, emoji: '🍎' },
-    orange: { name: 'Orange', growthTime: 225000, baseValue: 1600, cost: 1320, emoji: '🍊' },
-    mango: { name: 'Mango', growthTime: 240000, baseValue: 2400, cost: 1950, emoji: '🥭' },
-    pineapple: { name: 'Pineapple', growthTime: 300000, baseValue: 3500, cost: 2900, emoji: '🍍' },
-    coconut: { name: 'Coconut', growthTime: 360000, baseValue: 5200, cost: 4300, emoji: '🥥' },
-    'dragon-fruit': { name: 'Dragon Fruit', growthTime: 420000, baseValue: 7800, cost: 6400, emoji: '🐲' },
-    'passion-fruit': { name: 'Passion Fruit', growthTime: 480000, baseValue: 11500, cost: 9500, emoji: '💜' },
-    kiwi: { name: 'Kiwi', growthTime: 540000, baseValue: 17000, cost: 14000, emoji: '🥝' },
-  };
-
-  // Improved cookie utility functions
-  const setCookie = (name: string, value: string, days: number = 365) => {
-    try {
-      const expires = new Date();
-      expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
-      document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
-      console.log('Game data saved to cookies');
-    } catch (error) {
-      console.error('Failed to save to cookies:', error);
-    }
-  };
-
-  const getCookie = (name: string): string | null => {
-    try {
-      const nameEQ = name + "=";
-      const ca = document.cookie.split(';');
-      for (let i = 0; i < ca.length; i++) {
-        let c = ca[i];
-        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) === 0) {
-          return decodeURIComponent(c.substring(nameEQ.length, c.length));
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error('Failed to read from cookies:', error);
-      return null;
-    }
-  };
-
-  // Load game state from cookies on mount
+  // Load game data from Supabase on mount
   useEffect(() => {
-    const savedData = getCookie('farmValleySave');
-    console.log('Attempting to load save data:', savedData);
+    const fetchGameData = async () => {
+      const user = supabase.auth.user();
+      if (!user) {
+        console.error('No user is logged in!');
+        return;
+      }
 
-    if (savedData) {
       try {
-        const parsed = JSON.parse(savedData);
-        console.log('Parsed save data:', parsed);
+        // Fetch game state from the database
+        const { data: gameData } = await supabase
+          .from('game_state')
+          .select('*')
+          .eq('user_id', user.id)
+          .single(); // assuming one game_state per user
 
-        if (parsed.gameState) {
-          setGameState(parsed.gameState);
+        // Fetch crops from the database
+        const { data: userCrops } = await supabase
+          .from('crops')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (gameData) {
+          setGameState(gameData);
         }
-        if (parsed.crops) {
-          setCrops(parsed.crops);
+
+        if (userCrops) {
+          const cropsMap: { [key: string]: Crop } = {};
+          userCrops.forEach(crop => {
+            cropsMap[crop.id] = crop;
+          });
+          setCrops(cropsMap);
         }
-        if (parsed.selectedSeed) {
-          setSelectedSeed(parsed.selectedSeed);
-        }
-        console.log('Save data loaded successfully');
+
+        setIsLoaded(true);
       } catch (error) {
-        console.error('Failed to parse save data:', error);
+        console.error('Failed to load game data from Supabase:', error);
       }
-    } else {
-      console.log('No save data found');
-    }
-    setIsLoaded(true);
-  }, []);
-
-  // Save game state to cookies whenever it changes
-  useEffect(() => {
-    if (!isLoaded) return; // Don't save on initial load
-
-    const saveData = {
-      gameState,
-      crops,
-      selectedSeed,
-      lastSaved: Date.now()
     };
 
-    console.log('Saving game data:', saveData);
-    setCookie('farmValleySave', JSON.stringify(saveData));
-  }, [gameState, crops, selectedSeed, isLoaded]);
-
-  // Update crop readiness every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCrops(prevCrops => {
-        const updatedCrops = { ...prevCrops };
-        Object.keys(updatedCrops).forEach(key => {
-          const crop = updatedCrops[key];
-          if (!crop.isReady) {
-            const timeElapsed = Date.now() - crop.plantedAt;
-            if (timeElapsed >= crop.growthTime) {
-              updatedCrops[key] = { ...crop, isReady: true };
-            }
-          }
-        });
-        return updatedCrops;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
+    fetchGameData();
   }, []);
 
+  // Save game state and crops to Supabase whenever it changes
+  useEffect(() => {
+    const saveGameData = async () => {
+      const user = supabase.auth.user();
+      if (!user) {
+        console.error('No user is logged in!');
+        return;
+      }
+
+      try {
+        // Save game state
+        const { data: gameData, error: gameError } = await supabase
+          .from('game_state')
+          .upsert({ ...gameState, user_id: user.id }, { onConflict: ['user_id'] });
+
+        if (gameError) {
+          console.error('Error saving game state:', gameError);
+        }
+
+        // Save crops
+        const cropEntries = Object.values(crops);
+        const { data: cropsData, error: cropsError } = await supabase
+          .from('crops')
+          .upsert(cropEntries.map(crop => ({ ...crop, user_id: user.id })), { onConflict: ['id'] });
+
+        if (cropsError) {
+          console.error('Error saving crops:', cropsError);
+        }
+      } catch (error) {
+        console.error('Error saving game data to Supabase:', error);
+      }
+    };
+
+    if (isLoaded) {
+      saveGameData();
+    }
+  }, [gameState, crops, isLoaded]);
+
+  // Plant crop logic
   const plantCrop = (tileId: string) => {
     const seedType = seedTypes[selectedSeed];
     if (gameState.coins >= seedType.cost && !crops[tileId]) {
-const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
-
+      const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
       const adjustedGrowthTime = seedType.growthTime * speedMultiplier;
 
-      setCrops(prev => ({
-        ...prev,
-        [tileId]: {
-          id: tileId,
-          type: selectedSeed,
-          plantedAt: Date.now(),
-          growthTime: adjustedGrowthTime,
-          isReady: false,
-          baseValue: seedType.baseValue,
-        }
-      }));
+      const newCrop = {
+        id: tileId,
+        type: selectedSeed,
+        plantedAt: Date.now(),
+        growthTime: adjustedGrowthTime,
+        isReady: false,
+        baseValue: seedType.baseValue,
+      };
 
-      setGameState(prev => ({
-        ...prev,
-        coins: prev.coins - seedType.cost
-      }));
+      setCrops(prev => ({ ...prev, [tileId]: newCrop }));
+      setGameState(prev => ({ ...prev, coins: prev.coins - seedType.cost }));
     }
   };
 
+  // Harvest crop logic
   const harvestCrop = (tileId: string) => {
     const crop = crops[tileId];
     if (crop && crop.isReady) {
@@ -198,11 +136,7 @@ const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
       const rebirthMultiplier = 1 + (gameState.rebirthSellBonus / 100);
       const sellValue = crop.baseValue * upgradeMultiplier * rebirthMultiplier;
 
-      setGameState(prev => ({
-        ...prev,
-        coins: prev.coins + Math.floor(sellValue)
-      }));
-
+      setGameState(prev => ({ ...prev, coins: prev.coins + Math.floor(sellValue) }));
       setCrops(prev => {
         const newCrops = { ...prev };
         delete newCrops[tileId];
