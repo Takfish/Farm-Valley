@@ -79,33 +79,49 @@ const Index = () => {
   };
 
   // Save game data to database
-  const saveGameData = async () => {
-    if (!user) return;
-    
-    try {
-      const gameData = {
-        gameState,
-        crops,
-        selectedSeed,
-        lastSaved: Date.now()
-      };
+export function useGameSave(user: any, gameData: any) {
+  const { toast } = useToast();
 
-      const { error } = await supabase
-        .from('game_saves')
-        .upsert({
-          user_id: user.id,
-          game_data: gameData as any
+  useEffect(() => {
+    if (!user || !gameData) return;
+
+    const saveGameData = async () => {
+      try {
+        const { error } = await supabase
+          .from('game_saves')
+          .upsert(
+            {
+              user_id: user.id,
+              game_data: gameData
+            },
+            {
+              onConflict: 'user_id', // ✅ this ensures it updates instead of insert conflict
+            }
+          );
+
+        if (error) {
+          console.error('Failed to save game data:', error);
+          toast({
+            title: 'Save failed',
+            description: 'We couldn’t save your game. Please try again.',
+            variant: 'destructive'
+          });
+        } else {
+          console.log('Game data saved successfully!');
+        }
+      } catch (err) {
+        console.error('Unexpected error saving game data:', err);
+        toast({
+          title: 'Unexpected error',
+          description: 'Something went wrong while saving.',
+          variant: 'destructive'
         });
-
-      if (error) {
-        console.error('Failed to save game data:', error);
-      } else {
-        console.log('Game data saved to database');
       }
-    } catch (error) {
-      console.error('Failed to save game data:', error);
-    }
-  };
+    };
+
+    saveGameData();
+  }, [user, gameData, toast]);
+}
 
   // Load game data from database
   const loadGameData = async () => {
