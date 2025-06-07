@@ -139,6 +139,40 @@ const Index = () => {
     }
   };
 
+  // Load saved game when user logs in
+  useEffect(() => {
+    if (user) {
+      loadGameData().then(() => setIsLoaded(true));
+    } else {
+      // Reset state when no user
+      setGameState({
+        coins: 25,
+        cropTimeUpgrade: 0,
+        sellMultiplierUpgrade: 0,
+        rebirths: 0,
+        rebirthTokens: 0,
+        startingCoinsUpgrade: 0,
+        rebirthSpeedBonus: 0,
+        rebirthSellBonus: 0,
+        farmRowsUpgrade: 0,
+        extraTokenUpgrade: 0,
+      });
+      setCrops({});
+      setSelectedSeed('carrot');
+      setIsLoaded(false);
+    }
+  }, [user]);
+
+  // Save game data whenever it changes (debounced to avoid excessive writes)
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    // Debounce save by 1.5 seconds
+    const timeout = setTimeout(() => {
+      saveGameData();
+    }, 1500);
+
+    return () => clearTimeout(timeout);
+  }, [gameState, crops, selectedSeed, user, isLoaded]);
   const plantCrop = (tileId: string) => {
     const seedType = seedTypes[selectedSeed];
     if (gameState.coins >= seedType.cost && !crops[tileId]) {
