@@ -1,14 +1,43 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient'; // Import Supabase client
 import FarmGrid from '@/components/FarmGrid';
 import Shop from '@/components/Shop';
 import GameStats from '@/components/GameStats';
 import RebirthShop from '@/components/RebirthShop';
+import { AuthModal } from '@/components/AuthModal';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Coins, ShoppingCart, Sprout, RotateCcw, Trophy } from 'lucide-react';
+import { Coins, ShoppingCart, Sprout, RotateCcw, Trophy, LogIn, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+export interface GameState {
+  coins: number;
+  cropTimeUpgrade: number;
+  sellMultiplierUpgrade: number;
+  rebirths: number;
+  rebirthTokens: number;
+  startingCoinsUpgrade: number;
+  rebirthSpeedBonus: number;
+  rebirthSellBonus: number;
+  farmRowsUpgrade: number;
+  extraTokenUpgrade: number;
+}
+
+export interface Crop {
+  id: string;
+  type: 'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango' | 'pineapple' | 'coconut' | 'dragon-fruit' | 'passion-fruit' | 'kiwi';
+  plantedAt: number;
+  growthTime: number;
+  isReady: boolean;
+  baseValue: number;
+}
 
 const Index = () => {
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { toast } = useToast();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  
   const [gameState, setGameState] = useState<GameState>({
     coins: 25,
     cropTimeUpgrade: 0,
@@ -21,122 +50,185 @@ const Index = () => {
     farmRowsUpgrade: 0,
     extraTokenUpgrade: 0,
   });
+
   const [crops, setCrops] = useState<{ [key: string]: Crop }>({});
   const [selectedSeed, setSelectedSeed] = useState<'carrot' | 'wheat' | 'corn' | 'potato' | 'tomato' | 'pepper' | 'eggplant' | 'cucumber' | 'pumpkin' | 'strawberry' | 'blueberry' | 'grape' | 'apple' | 'orange' | 'mango' | 'pineapple' | 'coconut' | 'dragon-fruit' | 'passion-fruit' | 'kiwi'>('carrot');
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load game data from Supabase on mount
+  const seedTypes = {
+    carrot: { name: 'Carrot', growthTime: 30000, baseValue: 10, cost: 5, emoji: '🥕' },
+    wheat: { name: 'Wheat', growthTime: 45000, baseValue: 15, cost: 8, emoji: '🌾' },
+    corn: { name: 'Corn', growthTime: 60000, baseValue: 25, cost: 15, emoji: '🌽' },
+    potato: { name: 'Potato', growthTime: 75000, baseValue: 35, cost: 25, emoji: '🥔' },
+    tomato: { name: 'Tomato', growthTime: 90000, baseValue: 50, cost: 40, emoji: '🍅' },
+    pepper: { name: 'Pepper', growthTime: 105000, baseValue: 75, cost: 60, emoji: '🌶️' },
+    eggplant: { name: 'Eggplant', growthTime: 120000, baseValue: 110, cost: 90, emoji: '🍆' },
+    cucumber: { name: 'Cucumber', growthTime: 135000, baseValue: 160, cost: 130, emoji: '🥒' },
+    pumpkin: { name: 'Pumpkin', growthTime: 150000, baseValue: 230, cost: 190, emoji: '🎃' },
+    strawberry: { name: 'Strawberry', growthTime: 165000, baseValue: 340, cost: 280, emoji: '🍓' },
+    blueberry: { name: 'Blueberry', growthTime: 180000, baseValue: 500, cost: 410, emoji: '🫐' },
+    grape: { name: 'Grape', growthTime: 195000, baseValue: 740, cost: 610, emoji: '🍇' },
+    apple: { name: 'Apple', growthTime: 210000, baseValue: 1100, cost: 900, emoji: '🍎' },
+    orange: { name: 'Orange', growthTime: 225000, baseValue: 1600, cost: 1320, emoji: '🍊' },
+    mango: { name: 'Mango', growthTime: 240000, baseValue: 2400, cost: 1950, emoji: '🥭' },
+    pineapple: { name: 'Pineapple', growthTime: 300000, baseValue: 3500, cost: 2900, emoji: '🍍' },
+    coconut: { name: 'Coconut', growthTime: 360000, baseValue: 5200, cost: 4300, emoji: '🥥' },
+    'dragon-fruit': { name: 'Dragon Fruit', growthTime: 420000, baseValue: 7800, cost: 6400, emoji: '🐲' },
+    'passion-fruit': { name: 'Passion Fruit', growthTime: 480000, baseValue: 11500, cost: 9500, emoji: '💜' },
+    kiwi: { name: 'Kiwi', growthTime: 540000, baseValue: 17000, cost: 14000, emoji: '🥝' },
+  };
+
+  // Save game data to database
+export function useGameSave(user: any, gameData: any) {
+  const { toast } = useToast();
+
   useEffect(() => {
-    const fetchGameData = async () => {
-      const user = supabase.auth.user();
-      if (!user) {
-        console.error('No user is logged in!');
-        return;
-      }
+    if (!user || !gameData) return;
 
-      try {
-        // Fetch game state from the database
-        const { data: gameData } = await supabase
-          .from('game_state')
-          .select('*')
-          .eq('user_id', user.id)
-          .single(); // assuming one game_state per user
-
-        // Fetch crops from the database
-        const { data: userCrops } = await supabase
-          .from('crops')
-          .select('*')
-          .eq('user_id', user.id);
-
-        if (gameData) {
-          setGameState(gameData);
-        }
-
-        if (userCrops) {
-          const cropsMap: { [key: string]: Crop } = {};
-          userCrops.forEach(crop => {
-            cropsMap[crop.id] = crop;
-          });
-          setCrops(cropsMap);
-        }
-
-        setIsLoaded(true);
-      } catch (error) {
-        console.error('Failed to load game data from Supabase:', error);
-      }
-    };
-
-    fetchGameData();
-  }, []);
-
-  // Save game state and crops to Supabase whenever it changes
-  useEffect(() => {
     const saveGameData = async () => {
-      const user = supabase.auth.user();
-      if (!user) {
-        console.error('No user is logged in!');
-        return;
-      }
-
       try {
-        // Save game state
-        const { data: gameData, error: gameError } = await supabase
-          .from('game_state')
-          .upsert({ ...gameState, user_id: user.id }, { onConflict: ['user_id'] });
+        const { error } = await supabase
+          .from('game_saves')
+          .upsert(
+            {
+              user_id: user.id,
+              game_data: gameData
+            },
+            {
+              onConflict: 'user_id', // ✅ this ensures it updates instead of insert conflict
+            }
+          );
 
-        if (gameError) {
-          console.error('Error saving game state:', gameError);
+        if (error) {
+          console.error('Failed to save game data:', error);
+          toast({
+            title: 'Save failed',
+            description: 'We couldn’t save your game. Please try again.',
+            variant: 'destructive'
+          });
+        } else {
+          console.log('Game data saved successfully!');
         }
-
-        // Save crops
-        const cropEntries = Object.values(crops);
-        const { data: cropsData, error: cropsError } = await supabase
-          .from('crops')
-          .upsert(cropEntries.map(crop => ({ ...crop, user_id: user.id })), { onConflict: ['id'] });
-
-        if (cropsError) {
-          console.error('Error saving crops:', cropsError);
-        }
-      } catch (error) {
-        console.error('Error saving game data to Supabase:', error);
+      } catch (err) {
+        console.error('Unexpected error saving game data:', err);
+        toast({
+          title: 'Unexpected error',
+          description: 'Something went wrong while saving.',
+          variant: 'destructive'
+        });
       }
     };
 
-    if (isLoaded) {
-      saveGameData();
-    }
-  }, [gameState, crops, isLoaded]);
+    saveGameData();
+  }, [user, gameData, toast]);
+}
 
-  // Plant crop logic
-  const plantCrop = (tileId: string) => {
-    const seedType = seedTypes[selectedSeed];
-    if (gameState.coins >= seedType.cost && !crops[tileId]) {
-      const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
-      const adjustedGrowthTime = seedType.growthTime * speedMultiplier;
+  // Load game data from database
+  const loadGameData = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('game_saves')
+        .select('game_data')
+        .eq('user_id', user.id)
+        .single();
 
-      const newCrop = {
-        id: tileId,
-        type: selectedSeed,
-        plantedAt: Date.now(),
-        growthTime: adjustedGrowthTime,
-        isReady: false,
-        baseValue: seedType.baseValue,
-      };
+      if (error) {
+        console.log('No saved game data found');
+        return;
+      }
 
-      setCrops(prev => ({ ...prev, [tileId]: newCrop }));
-      setGameState(prev => ({ ...prev, coins: prev.coins - seedType.cost }));
+      if (data?.game_data) {
+        const gameData = data.game_data as any;
+        const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = gameData;
+        
+        if (savedGameState) setGameState(savedGameState);
+        if (savedCrops) setCrops(savedCrops);
+        if (savedSelectedSeed) setSelectedSeed(savedSelectedSeed);
+        
+        console.log('Game data loaded from database');
+      }
+    } catch (error) {
+      console.error('Failed to load game data:', error);
     }
   };
 
-  // Harvest crop logic
+  // Load game data when user logs in
+  useEffect(() => {
+    if (user && !authLoading) {
+      loadGameData().then(() => setIsLoaded(true));
+    } else if (!user && !authLoading) {
+      setIsLoaded(true);
+    }
+  }, [user, authLoading]);
+
+  // Save game data when it changes (only for logged in users)
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    
+    saveGameData();
+  }, [gameState, crops, selectedSeed, isLoaded, user]);
+
+  // Update crop readiness every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCrops(prevCrops => {
+        const updatedCrops = { ...prevCrops };
+        Object.keys(updatedCrops).forEach(key => {
+          const crop = updatedCrops[key];
+          if (!crop.isReady) {
+            const timeElapsed = Date.now() - crop.plantedAt;
+            if (timeElapsed >= crop.growthTime) {
+              updatedCrops[key] = { ...crop, isReady: true };
+            }
+          }
+        });
+        return updatedCrops;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const plantCrop = (tileId: string) => {
+    const seedType = seedTypes[selectedSeed];
+    if (gameState.coins >= seedType.cost && !crops[tileId]) {
+const speedMultiplier = 1 - Math.min(gameState.cropTimeUpgrade * 0.05, 0.5);
+
+      const adjustedGrowthTime = seedType.growthTime * speedMultiplier;
+      
+      setCrops(prev => ({
+        ...prev,
+        [tileId]: {
+          id: tileId,
+          type: selectedSeed,
+          plantedAt: Date.now(),
+          growthTime: adjustedGrowthTime,
+          isReady: false,
+          baseValue: seedType.baseValue,
+        }
+      }));
+
+      setGameState(prev => ({
+        ...prev,
+        coins: prev.coins - seedType.cost
+      }));
+    }
+  };
+
   const harvestCrop = (tileId: string) => {
     const crop = crops[tileId];
     if (crop && crop.isReady) {
       const upgradeMultiplier = Math.pow(1.1, gameState.sellMultiplierUpgrade);
       const rebirthMultiplier = 1 + (gameState.rebirthSellBonus / 100);
       const sellValue = crop.baseValue * upgradeMultiplier * rebirthMultiplier;
+      
+      setGameState(prev => ({
+        ...prev,
+        coins: prev.coins + Math.floor(sellValue)
+      }));
 
-      setGameState(prev => ({ ...prev, coins: prev.coins + Math.floor(sellValue) }));
       setCrops(prev => {
         const newCrops = { ...prev };
         delete newCrops[tileId];
@@ -150,7 +242,7 @@ const Index = () => {
     if (gameState.coins >= rebirthCost) {
       const startingCoins = 25 + (gameState.startingCoinsUpgrade * 50);
       const extraTokens = 1 + gameState.extraTokenUpgrade;
-
+      
       setGameState(prev => ({
         ...prev,
         coins: startingCoins,
@@ -186,7 +278,6 @@ const Index = () => {
       }));
     }
   };
-
   const upgradeExtraTokens = () => {
     const cost = 2 + (gameState.extraTokenUpgrade * 2);
     if (gameState.rebirthTokens >= cost) {
@@ -203,7 +294,7 @@ const Index = () => {
   };
 
   // Don't render until data is loaded
-  if (!isLoaded) {
+  if (!isLoaded || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-100 to-green-200 flex items-center justify-center">
         <div className="text-2xl font-bold text-green-800">Loading Farm Valley...</div>
@@ -215,7 +306,22 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-b from-green-100 to-green-200 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold text-green-800 mb-2">Farm Valley</h1>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-4xl font-bold text-green-800">Farm Valley</h1>
+            <div className="flex gap-2">
+              {user ? (
+                <Button onClick={signOut} variant="outline">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              ) : (
+                <Button onClick={() => setShowAuthModal(true)}>
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Login / Sign Up
+                </Button>
+              )}
+            </div>
+          </div>
           <GameStats gameState={gameState} />
         </div>
 
@@ -309,6 +415,11 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
     </div>
   );
 };
