@@ -79,54 +79,42 @@ const Index = () => {
   };
 
   // Save game data to database
-export function useGameSave(user: any, gameData: any) {
-  const { toast } = useToast();
+  const saveGameData = async () => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('game_saves')
+        .upsert(
+          {
+            user_id: user.id,
+            game_data: { gameState, crops, selectedSeed },
+          },
+          { onConflict: 'user_id' }
+        );
 
-  useEffect(() => {
-    if (!user || !gameData) return;
-
-    const saveGameData = async () => {
-      try {
-        const { error } = await supabase
-          .from('game_saves')
-          .upsert(
-            {
-              user_id: user.id,
-              game_data: gameData
-            },
-            {
-              onConflict: 'user_id', // ✅ this ensures it updates instead of insert conflict
-            }
-          );
-
-        if (error) {
-          console.error('Failed to save game data:', error);
-          toast({
-            title: 'Save failed',
-            description: 'We couldn’t save your game. Please try again.',
-            variant: 'destructive'
-          });
-        } else {
-          console.log('Game data saved successfully!');
-        }
-      } catch (err) {
-        console.error('Unexpected error saving game data:', err);
+      if (error) {
+        console.error('Failed to save game data:', error);
         toast({
-          title: 'Unexpected error',
-          description: 'Something went wrong while saving.',
-          variant: 'destructive'
+          title: 'Save failed',
+          description: 'We couldn’t save your game. Please try again.',
+          variant: 'destructive',
         });
+      } else {
+        console.log('Game data saved successfully!');
       }
-    };
-
-    saveGameData();
-  }, [user, gameData, toast]);
-}
+    } catch (err) {
+      console.error('Unexpected error saving game data:', err);
+      toast({
+        title: 'Unexpected error',
+        description: 'Something went wrong while saving.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Load game data from database
   const loadGameData = async () => {
     if (!user) return;
-    
     try {
       const { data, error } = await supabase
         .from('game_saves')
@@ -140,56 +128,16 @@ export function useGameSave(user: any, gameData: any) {
       }
 
       if (data?.game_data) {
-        const gameData = data.game_data as any;
-        const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = gameData;
-        
+        const { gameState: savedGameState, crops: savedCrops, selectedSeed: savedSelectedSeed } = data.game_data;
         if (savedGameState) setGameState(savedGameState);
         if (savedCrops) setCrops(savedCrops);
         if (savedSelectedSeed) setSelectedSeed(savedSelectedSeed);
-        
         console.log('Game data loaded from database');
       }
     } catch (error) {
       console.error('Failed to load game data:', error);
     }
   };
-
-  // Load game data when user logs in
-  useEffect(() => {
-    if (user && !authLoading) {
-      loadGameData().then(() => setIsLoaded(true));
-    } else if (!user && !authLoading) {
-      setIsLoaded(true);
-    }
-  }, [user, authLoading]);
-
-  // Save game data when it changes (only for logged in users)
-  useEffect(() => {
-    if (!isLoaded || !user) return;
-    
-    saveGameData();
-  }, [gameState, crops, selectedSeed, isLoaded, user]);
-
-  // Update crop readiness every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCrops(prevCrops => {
-        const updatedCrops = { ...prevCrops };
-        Object.keys(updatedCrops).forEach(key => {
-          const crop = updatedCrops[key];
-          if (!crop.isReady) {
-            const timeElapsed = Date.now() - crop.plantedAt;
-            if (timeElapsed >= crop.growthTime) {
-              updatedCrops[key] = { ...crop, isReady: true };
-            }
-          }
-        });
-        return updatedCrops;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const plantCrop = (tileId: string) => {
     const seedType = seedTypes[selectedSeed];
